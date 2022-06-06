@@ -50,16 +50,9 @@ func (c *TwilioConfig) SendSmsRequest(to, body string) (*http.Request, error) {
 }
 
 func (c *TwilioConfig) MustSendSmsRequest(to, body string) *http.Request {
-	values := url.Values{}
-	values.Set("To", to)
-	values.Set("From", c.PhoneNumber)
-	values.Set("Body", body)
-	reader := strings.NewReader(values.Encode())
-	req, err := http.NewRequest("POST", c.SendSmsURL, reader)
+	req, err := c.SendSmsRequest(to, body)
 	if err != nil {
 		log.Fatal(err)
 	}
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.SetBasicAuth(c.AccountSID, c.AuthToken)
 	return req
 }
