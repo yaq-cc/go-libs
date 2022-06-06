@@ -1,4 +1,4 @@
-module github.com/yaq-cc/go-libs/twilio
+module github.com/yaq-cc/go-libs
 
 go 1.17
 
