@@ -13,6 +13,7 @@ type TwilioConfig struct {
 	AuthToken   string
 	PhoneNumber string
 	SendSmsURL  string
+	Parameters  map[string]string
 }
 
 func NewTwilioConfig() *TwilioConfig {
@@ -31,10 +32,27 @@ func NewTwilioConfig() *TwilioConfig {
 		AuthToken:   AuthToken,
 		PhoneNumber: PhoneNumber,
 		SendSmsURL:  SendSmsURL.String(),
+		Parameters:  make(map[string]string),
 	}
 }
 
+func (c *TwilioConfig) updateURL() {
+	URL, err := url.Parse(c.SendSmsURL)
+	if err != nil {
+		log.Fatal(err)
+	}
+	URLQueries := URL.Query()
+	for key, value := range c.Parameters {
+		URLQueries.Add(key, value)
+	}
+	URL.RawQuery = URLQueries.Encode()
+	c.SendSmsURL = URL.String()
+}
+
 func (c *TwilioConfig) SendSmsRequest(to, body string) (*http.Request, error) {
+	if len(c.Parameters) != 0 {
+		c.updateURL()
+	}
 	values := url.Values{}
 	values.Set("To", to)
 	values.Set("From", c.PhoneNumber)

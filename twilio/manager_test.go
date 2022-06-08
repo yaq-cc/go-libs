@@ -17,7 +17,10 @@ func TestTwilioConfig(t *testing.T) {
 func TestTwilioSendSms(t *testing.T) {
 	phoneNumber := os.Getenv("TEST_PHONE_NUMBER")
 	cfg := NewTwilioConfig()
+	cfg.Parameters["Owner"] = "Yvan"
+	cfg.Parameters["Wife"] = "Wendy"
 	req := cfg.MustSendSmsRequest(phoneNumber, "Yvan says hi.")
+	t.Log(req.URL.String())
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
