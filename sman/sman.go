@@ -51,10 +51,7 @@ func (m *WebServiceManager) ListenAndServe(addr string) error {
 	m.Server = server // Not necessary- done for consistency.
 	m.Logger.Printf("Starting HTTP(S) server on port %s\n", addr)
 	go func() {
-		err := m.Server.ListenAndServe()
-		if err != nil {
-			m.Errors <- err
-		}
+		m.Server.ListenAndServe()
 	}()
 Listener:
 	for {
