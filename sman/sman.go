@@ -16,6 +16,7 @@ type WebServiceManager struct {
 	ServeMux *http.ServeMux
 	Logger   *log.Logger
 	Signals  chan os.Signal
+	Errors   chan error
 }
 
 func NewWebServiceManager() *WebServiceManager {
@@ -23,12 +24,14 @@ func NewWebServiceManager() *WebServiceManager {
 	mux := http.NewServeMux()
 	logger := log.Default()
 	signals := make(chan os.Signal, 1)
+	errors := make(chan error)
 	signal.Notify(signals, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM)
 	return &WebServiceManager{
 		Context:  ctx,
 		ServeMux: mux,
 		Logger:   logger,
 		Signals:  signals,
+		Errors:   errors,
 	}
 }
 
@@ -37,24 +40,26 @@ func (m *WebServiceManager) HandleFunc(pattern string, handler func(w http.Respo
 }
 
 func (m *WebServiceManager) ListenAndServe(addr string) error {
+	defer func() {
+		close(m.Signals)
+		close(m.Errors)
+	}()
 	server := &http.Server{
 		Addr:    addr,
 		Handler: m.ServeMux,
 	}
 	m.Server = server // Not necessary- done for consistency.
 	m.Logger.Printf("Starting HTTP(S) server on port %s\n", addr)
-	errs := make(chan error)
 	go func() {
 		err := m.Server.ListenAndServe()
 		if err != nil {
-			errs <- err
+			m.Errors <- err
 		}
 	}()
 Listener:
 	for {
 		select {
-		case err:= <-errs:
-			close(errs)
+		case err := <-m.Errors:
 			return err
 		case sig := <-m.Signals:
 			switch sig {
@@ -64,8 +69,10 @@ Listener:
 				shutdown, cancel := context.WithTimeout(m.Context, time.Second*5)
 				defer cancel()
 				m.Logger.Println("Gracefully shutting HTTP(S) server down")
-				m.Server.Shutdown(shutdown)
-				close(m.Signals)
+				err := m.Server.Shutdown(shutdown)
+				if err != nil {
+					return err
+				}
 				break Listener
 			}
 		}
