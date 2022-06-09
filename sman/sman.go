@@ -36,29 +36,41 @@ func (m *WebServiceManager) HandleFunc(pattern string, handler func(w http.Respo
 	m.ServeMux.HandleFunc(pattern, handler)
 }
 
-func (m *WebServiceManager) ListenAndServe(addr string) {
+func (m *WebServiceManager) ListenAndServe(addr string) error {
 	server := &http.Server{
 		Addr:    addr,
 		Handler: m.ServeMux,
 	}
-	m.Server = server
+	m.Server = server // Not necessary- done for consistency.
 	m.Logger.Printf("Starting HTTP(S) server on port %s\n", addr)
-	go m.Server.ListenAndServe()
+	errs := make(chan error)
+	go func() {
+		err := m.Server.ListenAndServe()
+		if err != nil {
+			errs <- err
+		}
+	}()
 Listener:
 	for {
-		sig := <-m.Signals
-		switch sig {
-		case syscall.SIGHUP:
-			// pass
-		case syscall.SIGINT, syscall.SIGTERM:
-			shutdown, cancel := context.WithTimeout(m.Context, time.Second*5)
-			defer cancel()
-			m.Logger.Println("Gracefully shutting HTTP(S) server down")
-			m.Server.Shutdown(shutdown)
-			close(m.Signals)
-			break Listener
+		select {
+		case err:= <-errs:
+			close(errs)
+			return err
+		case sig := <-m.Signals:
+			switch sig {
+			case syscall.SIGHUP:
+				// pass
+			case syscall.SIGINT, syscall.SIGTERM:
+				shutdown, cancel := context.WithTimeout(m.Context, time.Second*5)
+				defer cancel()
+				m.Logger.Println("Gracefully shutting HTTP(S) server down")
+				m.Server.Shutdown(shutdown)
+				close(m.Signals)
+				break Listener
+			}
 		}
 	}
+	return nil
 }
 
 func (m *WebServiceManager) GetLogger() *log.Logger {
