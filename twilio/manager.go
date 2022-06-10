@@ -8,15 +8,14 @@ import (
 	"strings"
 )
 
-type TwilioConfig struct {
+type TwilioSMSManager struct {
 	AccountSID  string
 	AuthToken   string
 	PhoneNumber string
 	SendSmsURL  string
-	Parameters  map[string]string
 }
 
-func NewTwilioConfig() *TwilioConfig {
+func NewTwilioConfig() *TwilioSMSManager {
 
 	var SendSmsURL strings.Builder
 
@@ -27,32 +26,15 @@ func NewTwilioConfig() *TwilioConfig {
 	SendSmsURL.WriteString(AccountSID)
 	SendSmsURL.WriteString("/Messages.json")
 
-	return &TwilioConfig{
+	return &TwilioSMSManager{
 		AccountSID:  AccountSID,
 		AuthToken:   AuthToken,
 		PhoneNumber: PhoneNumber,
 		SendSmsURL:  SendSmsURL.String(),
-		Parameters:  make(map[string]string),
 	}
 }
 
-func (c *TwilioConfig) updateURL() {
-	URL, err := url.Parse(c.SendSmsURL)
-	if err != nil {
-		log.Fatal(err)
-	}
-	URLQueries := URL.Query()
-	for key, value := range c.Parameters {
-		URLQueries.Add(key, value)
-	}
-	URL.RawQuery = URLQueries.Encode()
-	c.SendSmsURL = URL.String()
-}
-
-func (c *TwilioConfig) SendSmsRequest(to, body string) (*http.Request, error) {
-	if len(c.Parameters) != 0 {
-		c.updateURL()
-	}
+func (c *TwilioSMSManager) SendSmsRequest(to, body string) (*http.Request, error) {
 	values := url.Values{}
 	values.Set("To", to)
 	values.Set("From", c.PhoneNumber)
@@ -67,7 +49,7 @@ func (c *TwilioConfig) SendSmsRequest(to, body string) (*http.Request, error) {
 	return req, nil
 }
 
-func (c *TwilioConfig) MustSendSmsRequest(to, body string) *http.Request {
+func (c *TwilioSMSManager) MustSendSmsRequest(to, body string) *http.Request {
 	req, err := c.SendSmsRequest(to, body)
 	if err != nil {
 		log.Fatal(err)
